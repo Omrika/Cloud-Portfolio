@@ -1,0 +1,13 @@
+Scenario: The CISO of Titan FinTech has approved your foundational designs. Now it's time to build their production network. You must write Terraform code that builds a secure VPC with internet access, wiretap it with VPC Flow Logs, and deploy a Zero Trust EC2 instance reachable only through AWS Systems Manager. No inbound ports allowed.
+✏️ Instructions
+Step 1 — Clone the repository below and run terraform init. The starter code provides the complex IAM Roles for Flow Logs and SSM — your job is to build the network and the compute.
+Step 2 — Edit main.tf to define:
+The Perimeter: an aws_vpc (10.0.0.0/16), a Public aws_subnet (10.0.1.0/24), an aws_internet_gateway attached to the VPC, and an aws_route_table routing 0.0.0.0/0 to the IGW, attached to the Public Subnet via aws_route_table_association.
+The Wiretap: an aws_cloudwatch_log_group named /tkh/titan-prod-vpc-logs (retention set to 1 day), and an aws_flow_log attached to your VPC, linked to the provided data.aws_iam_role.flow_log_role, capturing ALL traffic.
+The Zero Trust Compute: an aws_security_group with an egress block allowing all outbound traffic and ZERO ingress blocks, and an aws_instance (t2.micro Ubuntu) placed in your Public Subnet with that Security Group and the provided data.aws_iam_instance_profile.ssm_profile attached.
+Step 3 — Run terraform plan to confirm no red errors, then terraform apply. Type yes when prompted.
+Step 4 — Log into the AWS Console. Navigate to EC2 and use Session Manager to connect to your instance — run whoami and confirm it returns ssm-user. Then navigate to CloudWatch → Log groups → /tkh/titan-prod-vpc-logs and confirm active Flow Logs are capturing traffic.
+Step 5 — Run terraform destroy, type yes, and take a full-screen screenshot of the completion output.
+Step 6 — Upload your completed main.tf, the SSM terminal screenshot, the CloudWatch screenshot, and the destroy screenshot to Canvas by Thursday, July 23, 2026 at 11:59 PM EST.
+🔗 Access Your Repository
+Clone your starter code from: git clone https://github.com/grobbins-cell/TLAB6-Monitored-Fortress.git
