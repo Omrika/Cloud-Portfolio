@@ -1,0 +1,78 @@
+TLAB 8: The Fleet Command (Weekend Mission)
+Module: Phase 2: Cloud Security Engineering | Phase: Sprint 3 (The Cloud)
+Standard: World Elite Gold | Theme: "The Ephemeral Synthesis."
+
+Environment	Local VS Code + Docker Desktop + AWS CLI + ECR + AWS Lambda
+Technical Competency	End-to-End Ephemeral Deployment, Container Hardening, Scan on Push, Serverless IAM Least Privilege
+Time Allocation	Weekend Capstone (Asynchronous)
+Submission	Canvas File Upload
+📢 MISSION BRIEFING
+Welcome to your Week 8 weekend capstone. You have learned how to build secure containers (Cargo Ships) and serverless functions (Ghost Fleet). Now, you must integrate them.
+
+Scenario: Your mission is to build a hardened container and push it to a private Amazon ECR vault. Then, you will deploy a Python Lambda function—an automated "Auditor"—that queries your ECR vault to list the images inside it. The catch? The IAM Execution Role provided by the junior developers grants the Lambda function AdministratorAccess. You must surgically rewrite the JSON policy to only allow the function to read from ECR and write to CloudWatch. If you grant it too much access, you fail the capstone.
+
+Required Briefings:
+Read: AWS IAM Policies for Amazon ECR (Official AWS Docs) - Review the specific IAM actions required to read repository data.
+Read: AWS Lambda Execution Role (Official AWS Docs) - A final review of how Lambda assumes its permissions.
+Watch: Search YouTube for "Be a Better Dev AWS IAM Roles and Policies Explained" - A crucial visual refresher on mapping Actions to Resources in JSON before you write your final policy.
+🧭 PHASE 1: THE HARDENED CARGO
+Goal: Fix the sabotaged container and push it to AWS ECR.
+
+The Pull: In your VS Code terminal, run: git clone https://github.com/grobbins-cell/TLAB8-Fleet.git.
+Navigate: Type cd TLAB8-Fleet.
+The Docker Sabotage: Open Dockerfile. It uses FROM node:latest (bloated) and has no USER directive (runs as root).
+The Fix: Rewrite the Dockerfile to use node:alpine and explicitly declare USER node before the CMD instruction.
+The Vault: Log into the AWS Console. Create a private ECR Repository named tkh-fleet-vault. Enable Scan on Push.
+The Push: Click "View push commands" in the ECR console. Execute the 4 commands in your VS Code terminal to authenticate, build, tag, and push your hardened container to the vault.
+🧭 PHASE 2: THE GHOST AUDITOR
+Goal: Deploy the Python Lambda function that will audit your ECR vault.
+
+The Function: In the AWS Console, navigate to Lambda and click Create function. Name: Fleet-Auditor. Runtime: Python 3.12. Click Create function.
+The Code: In the Lambda code editor, paste the provided Python script (this script uses the AWS Boto3 library to ask ECR for a list of images):
+import boto3
+import json
+
+def lambda_handler(event, context):
+    client = boto3.client('ecr')
+    response = client.describe_images(repositoryName='tkh-fleet-vault')
+    print(f"Audit Complete. Images found: {len(response['imageDetails'])}")
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Fleet Audit Successful!')
+    }
+Deploy: Click the Deploy button to save the code.
+🧭 PHASE 3: THE SURGICAL PERIMETER (IAM)
+Goal: Replace the wildcard IAM role with a strict Least Privilege JSON policy.
+
+The Sabotage: Look at auditor-role.json in your VS Code. It grants * (everything). If a hacker breaches this Lambda, they own your AWS account.
+The Fix: Rewrite the JSON policy. The Lambda function only needs to do two things: Write logs to CloudWatch, and describe images in ECR.
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:DescribeImages"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:YOUR_ACCOUNT_ID:repository/tkh-fleet-vault"
+    }
+  ]
+}
+The Attachment: Go to the IAM Console. Create a new policy using your fixed JSON. Create a new Role for Lambda, attach this policy, and assign the Role to your Fleet-Auditor function (Lambda -> Configuration -> Permissions).
+The Execution: Click Test on your Lambda function. Expand the execution logs. It should successfully read your ECR vault and print "Audit Complete. Images found: 1".
+📤 PHASE 4: THE TEARDOWN & SUBMISSION
+Destroy: Go to the AWS ECR Console and delete the tkh-fleet-vault repository so you are not charged for storage. Delete the Lambda function.
+Submit to Canvas:
+Screenshot A: The clean ECR vulnerability scan of your hardened container.
+Screenshot B: The successful Lambda execution log showing it successfully queried ECR.
+File 1: Your hardened Dockerfile.
+File 2: Your secured auditor-role.json.
