@@ -1,0 +1,66 @@
+TLAB 9: The Full Spectrum Breach (Weekend Mission)
+Module: Phase 2: Cloud Security Engineering | Phase: Sprint 4 (The Watchtower)
+Standard: World Elite Gold | Theme: "Detect. Hunt. Contain."
+
+Environment	Local VS Code + AWS Console (Athena, EC2, IAM)
+Technical Competency	End-to-End Incident Response, Forensic SQL Querying, Network Isolation, Identity Revocation
+Time Allocation	Weekend Capstone (Asynchronous)
+Submission	Canvas File Upload
+📢 MISSION BRIEFING
+Welcome to your Week 9 weekend capstone. This is a live-fire exercise. A critical alert has been triggered in your environment. An attacker has compromised an IAM user and spun up a rogue EC2 instance to exfiltrate data.
+
+Scenario: Your mission is to execute a full-spectrum incident response. You will use Amazon Athena to hunt through your CloudTrail flight data recorder to identify exactly which IAM user was breached and the ID of the rogue EC2 instance. Then, you will enter the War Room. You must sever the network connection of that instance and apply an explicit Deny policy to the breached IAM user before the weekend is over.
+
+Required Briefings:
+Read: AWS Incident Response Guide: Containment (Official AWS Docs) - Review the psychological and technical steps of isolating a threat.
+Read: Querying CloudTrail with Athena (Official AWS Docs) - Keep this open. You will need to write SQL SELECT statements to find the rogue server.
+Watch: Search YouTube for "AWS Events Incident Response in the Cloud" - A final visual review of how detection, forensics, and containment overlap in a real crisis.
+🧭 PHASE 1: THE SETUP & THE HUNT
+Goal: Deploy a dummy target and hunt for its creation in the logs.
+
+The Pull: In your VS Code terminal, run: git clone https://github.com/grobbins-cell/TLAB9-Breach.git.
+Navigate: Type cd TLAB9-Breach.
+Deploy the Rogue Target: Log into the AWS Console. Manually launch an EC2 instance (t2.micro, Amazon Linux) and name it Rogue-Exfiltration-Node. This represents the hacker's machine.
+The Forensic Query: Open the AWS Athena Console. You will use the cloudtrail_logs_tkh table you built in Session 26.
+Fix the SQL Sabotage: Open your local hunting_query.sql file. It will fail to run because of a syntax error. Look at the SELECT block. You are missing a comma after user_identity. Add it.
+SELECT 
+    eventtime,
+    useridentity.arn as user_identity,
+    eventname,
+    requestparameters
+FROM 
+    cloudtrail_logs_tkh
+WHERE 
+    eventname = 'RunInstances'
+ORDER BY 
+    eventtime DESC;
+Execute the Hunt: Paste the fixed SQL query into Athena and run it. The query searches for RunInstances (the API call for launching an EC2 instance). Find your Rogue-Exfiltration-Node launch in the results. Note the IAM user that launched it.
+🧭 PHASE 2: THE NETWORK QUARANTINE
+Goal: Drop the steel box over the rogue instance.
+
+The Quarantine Group: In the EC2 Console, create a new Security Group named IR-Total-Lockdown. Delete all outbound rules. Ensure there are zero inbound rules.
+The Sever: Go to your Instances dashboard. Right-click Rogue-Exfiltration-Node -> Security -> Change security groups. Uncheck the default group, apply IR-Total-Lockdown, and save.
+🧭 PHASE 3: IDENTITY PARALYZATION
+Goal: Revoke the compromised IAM user's credentials instantly.
+
+Fix the JSON Sabotage: Open your local revoke_policy.json file. It is dangerously incomplete. It specifies the Action and Resource, but forgets to tell AWS whether to Allow or Deny it.
+The Injection: Add "Effect": "Deny", inside the Statement block.
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Deny",
+      "Action": "*",
+      "Resource": "*"
+    }
+  ]
+}
+The Strike: Go to the IAM Console -> Policies -> Create policy. Paste your fixed JSON and name it IR-Emergency-Deny.
+The Paralyzation: Go to IAM Users. Find the user identity you discovered during your Athena SQL hunt. Attach the IR-Emergency-Deny policy directly to that user. The attacker is now locked out.
+📤 PHASE 4: THE TEARDOWN & SUBMISSION
+Submit to Canvas:
+Screenshot A: The Athena console showing your successful SQL query execution and the results.
+Screenshot B: The EC2 console showing the Rogue-Exfiltration-Node attached only to the IR-Total-Lockdown security group.
+File 1: Your fixed hunting_query.sql.
+File 2: Your fixed revoke_policy.json.
+Destroy: Terminate the Rogue-Exfiltration-Node EC2 instance to stop all billing charges.
